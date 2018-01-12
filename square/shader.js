@@ -1,3 +1,18 @@
+//main();
+//function main() {
+  const canvas = document.querySelector('#glCanvas');
+
+  const gl = canvas.getContext('webgl');
+
+  if(!gl) {
+    alert('Unable to initialize WebGL. Your browser or machine may not support it.');
+    //return;
+  }
+
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+//}
+
   // Vertex Shader Program
   const vsSource = `
   attribute vec4 aVertexPosition;
@@ -65,7 +80,95 @@ void main() {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition')
     },
     uniformLocations: {
-        projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-        modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
     }
   };
+
+  function initBuffers(gl) {
+    //create a buffer for the square's positions
+    const positionBuffer = gl.createBuffer();
+
+    //select the positionBuffer as the one to apply buffer operations to from here out
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    //create an array of positions for the square
+    const positions = [
+      1.0, 1.0, -1.0, 1.0,
+      1.0, -1.0, -1.0, -1.0
+    ];
+
+    //build the shape
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions),
+      gl.STATIC_DRAW);
+
+    return {
+      position: positionBuffer
+    };
+  }
+
+  function drawScene(gl, programInfo, buffers) {
+    //clear to black
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    //clear everything
+    gl.clearDepth(1.0);
+    //enable depth test
+    gl.enable(gl.DEPTH_TEST);
+    //near things obscure far things
+    gl.depthFunc(gl.LEQUAL);
+
+    //clear the canvas before drawing on it
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const fov = 45 * Math.PI / 180;
+    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    const zNear = 0.1;
+    const zFar = 100.0;
+    const projectionMatrix = mat4.create();
+
+    mat4.perspective(projectionMatrix, fov, aspect, zNear, zFar);
+
+    const modelViewMatrix = mat4.create();
+
+    mat4.translate(modelViewMatrix, modelViewMatrix, [-0.0, 0.0, -6.0]);
+
+    {
+      const numComponents = 2;
+      const type = gl.FLOAT;
+      const normalize = false;
+      const stride = 0;
+
+      const offset = 0;
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+      gl.vertexAttribPointer(
+        programInfo.attribLocations.vertexPosition,
+        numComponents,
+        type,
+        normalize,
+        stride,
+        offset);
+
+      gl.enableVertexAttribArray(
+        programInfo.attribLocations.vertexPosition
+      );
+
+      //tell webgl to use our program to draw
+      gl.useProgram(programInfo.program);
+
+      //set the shader uniforms
+      gl.uniformMatrix4fv(
+        programINfo.uniformLocations.projectionMatrix,
+        false,
+        projectionMatrix);
+
+      gl.uniformMatrix4fv(
+        programInfo.uniformLocations.modelViewMatrix,
+        false,
+        modelViewMatrix); {
+        const offset = 0;
+        const vertexCount = 4;
+        gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
+      }
+    }
+  }
